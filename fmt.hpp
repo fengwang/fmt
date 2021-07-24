@@ -40,6 +40,63 @@ namespace fmt
         #else
         constexpr unsigned long max_element_to_format = MAXFORMAT;
         #endif
+
+        template< typename T >
+        std::string to_string( T const& );
+
+        inline std::string to_string( std::string const& st )
+        {
+            return st;
+        }
+
+        template< typename ... K >
+        std::string to_string( std::pair<K...> const& val )
+        {
+            return std::string{"("} + to_string(val.first) + std::string{", "} + to_string(val.second) + std::string{")"};
+        }
+
+        template< typename ... Args >
+        std::string to_string( std::tuple<Args...> const& val )
+        {
+            std::stringstream ss;
+            ss << "( ";
+            std::apply([&ss](auto&&... args) {((ss << to_string(args) << ", "), ...);}, val);
+            ss.seekp(-2, ss.cur);
+            ss << " )";
+            return ss.str();
+        }
+
+        template< typename ... Args >
+        std::string to_string( std::variant<Args...> const& val )
+        {
+            return to_string( val.begin(), val.end() );
+        }
+
+        /*
+        template< typename T >
+        std::string to_string( std::optional<T> const& val )
+        {
+            return to_string( val.begin(), val.end() );
+        }
+
+        inline std::string to_string( std::any const& val )
+        {
+            return to_string( val.begin(), val.end() );
+        }
+
+        template< typename... T >
+        std::string to_string( std::shared_ptr<T...> const& val )
+        {
+            return to_string( val.begin(), val.end() );
+        }
+
+        template< typename T >
+        std::string to_string( std::unique_ptr<T> const& val )
+        {
+            return to_string( val.begin(), val.end() );
+        }
+        */
+
         //
         // converts to string
         template <typename U>
@@ -79,38 +136,66 @@ namespace fmt
         template< typename T >
         inline constexpr bool is_pointer_v = is_pointer<T>::value;
 
+        template< typename T, typename = void >
+        struct has_begin : std::false_type {};
+
+        template< typename T >
+        struct has_begin<T, std::void_t<decltype(std::declval<T const&>().begin())> > : std::true_type {};
+
+        template< typename T, typename = void >
+        struct has_end : std::false_type {};
+
+        template< typename T >
+        struct has_end<T, std::void_t<decltype(std::declval<T const&>().end())> > : std::true_type {};
+
+        template< typename T >
+        inline constexpr bool has_begin_end_v = has_begin<T>::value && has_end<T>::value;
+
+        template< std::forward_iterator Iterator >
+        std::string iterator_to_string( Iterator first, Iterator last );
+
 
         // other types
         template< typename T >
         std::string to_string( T const& val )
         {
-            if constexpr( has_to_string_v<T> )
-            {
-                return std::to_string( val );
-            }
-            else if constexpr( has_ostream_v<T> )
+            if constexpr( has_ostream_v<T> )
             {
                 return cast_to_string( val );
+            }
+            else if constexpr( std::is_constructible_v<std::string, T const& > )
+            {
+                return std::string{ val };
+            }
+            else if constexpr( has_to_string_v<T> )
+            {
+                return std::to_string( val );
             }
             else if constexpr( is_pointer_v<T> )
             {
                 if ( val == nullptr ) return std::string{ "<Null Pointer>" };
                 return std::string{"Pointer to " } + to_string( *val );
             }
+            else if constexpr( has_begin_end_v<T> )
+            {
+                return iterator_to_string( val.begin(), val.end() );
+            }
             else
             {
-                return std::string{ "Should be implemented using relfection." };
-                // reflection, then print, TODO
+                auto tp = tuple_binding( val );
+                return to_string( tp );
             }
         }
 
-        // stl containers
-
         template< std::forward_iterator Iterator >
-        std::string to_string( Iterator first, Iterator last )
+        std::string iterator_to_string( Iterator first, Iterator last )
         {
-            if ( std::distance( first, last ) > max_element_to_format )
-                last = first + max_element_to_format;
+            if ( std::distance( first, last ) > static_cast<long int>(max_element_to_format) )
+            {
+                last = first;
+                std::advance( last, max_element_to_format );
+            }
+                //last = first + max_element_to_format;
 
             std::string ans{"("};
             for ( ; first != last; ++first )
@@ -119,6 +204,9 @@ namespace fmt
             return ans + std::string{")"};
         }
 
+        // stl containers
+
+#if 0
         template< typename T, std::size_t N >
         std::string to_string( std::array<T, N> const& val )
         {
@@ -128,151 +216,110 @@ namespace fmt
         template< typename T, typename Alloc >
         std::string to_string( std::vector<T, Alloc> const& val )
         {
-            return std::string{""}; // TODO
+            return to_string( val.begin(), val.end() );
         }
 
         template< typename T, typename Alloc >
         std::string to_string( std::deque<T, Alloc> const& val )
         {
-            return std::string{""}; // TODO
+            return to_string( val.begin(), val.end() );
         }
 
         template< typename T, typename Alloc >
         std::string to_string( std::forward_list<T, Alloc> const& val )
         {
-            return std::string{""}; // TODO
+            return to_string( val.begin(), val.end() );
         }
 
         template< typename T, typename Alloc >
         std::string to_string( std::list<T, Alloc> const& val )
         {
-            return std::string{""}; // TODO
+            return to_string( val.begin(), val.end() );
         }
 
         template< typename T, typename C, typename Alloc >
         std::string to_string( std::set<T, C, Alloc> const& val )
         {
-            return std::string{""}; // TODO
+            return to_string( val.begin(), val.end() );
         }
 
         template< typename T, typename C, typename Alloc >
         std::string to_string( std::multiset<T, C, Alloc> const& val )
         {
-            return std::string{""}; // TODO
+            return to_string( val.begin(), val.end() );
         }
 
         template< typename ... K >
         std::string to_string( std::unordered_set<K...> const& val )
         {
-            return std::string{""}; // TODO
+            return to_string( val.begin(), val.end() );
         }
 
         template< typename... K >
         std::string to_string( std::unordered_multiset<K...> const& val )
         {
-            return std::string{""}; // TODO
+            return to_string( val.begin(), val.end() );
         }
 
         template< typename... K >
         std::string to_string( std::map<K...> const& val )
         {
-            return std::string{""}; // TODO
+            return to_string( val.begin(), val.end() );
         }
 
         template< typename... K >
         std::string to_string( std::multimap<K...> const& val )
         {
-            return std::string{""}; // TODO
+            return to_string( val.begin(), val.end() );
         }
 
         template< typename... K >
         std::string to_string( std::unordered_map<K...> const& val )
         {
-            return std::string{""}; // TODO
+            return to_string( val.begin(), val.end() );
         }
 
         template< typename... K >
         std::string to_string( std::unordered_multimap<K...> const& val )
         {
-            return std::string{""}; // TODO
+            return to_string( val.begin(), val.end() );
         }
 
         template< typename ... K >
         std::string to_string( std::stack<K...> const& val )
         {
-            return std::string{""}; // TODO
+            return to_string( val.begin(), val.end() );
         }
 
         template< typename... K >
         std::string to_string( std::queue<K...> const& val )
         {
-            return std::string{""}; // TODO
+            return to_string( val.begin(), val.end() );
         }
 
         template< typename... K >
         std::string to_string( std::priority_queue<K...> const& val )
         {
-            return std::string{""}; // TODO
-        }
-
-        template< typename ... K >
-        std::string to_string( std::pair<K...> const& val )
-        {
-            return std::string{""}; // TODO
-        }
-
-        template< typename ... Args >
-        std::string to_string( std::tuple<Args...> const& val )
-        {
-            return std::string{""}; // TODO
-        }
-
-        template< typename ... Args >
-        std::string to_string( std::variant<Args...> const& val )
-        {
-            return std::string{""}; // TODO
-        }
-
-        template< typename T >
-        std::string to_string( std::optional<T> const& val )
-        {
-            return std::string{""}; // TODO
-        }
-
-        inline std::string to_string( std::any const& val )
-        {
-            return std::string{""}; // TODO
-        }
-
-        template< typename... T >
-        std::string to_string( std::shared_ptr<T...> const& val )
-        {
-            return std::string{""}; // TODO
-        }
-
-        template< typename T >
-        std::string to_string( std::unique_ptr<T> const& val )
-        {
-            return std::string{""}; // TODO
+            return to_string( val.begin(), val.end() );
         }
 
         template< std::size_t N >
         std::string to_string( std::bitset<N> const& val )
         {
-            return std::string{""}; // TODO
+            return to_string( val.begin(), val.end() );
         }
-
+#endif
         /*
         template< typename T, typename U >
         std::string to_string( std::time_point<T, U> const& val )
         {
-            return std::string{""}; // TODO
+            return to_string( val.begin(), val.end() );
         }
 
         template< typename T, typename U >
         std::string to_string( std::duration<T, U> const& val )
         {
-            return std::string{""}; // TODO
+            return to_string( val.begin(), val.end() );
         }
         */
 
