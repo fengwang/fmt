@@ -1,11 +1,30 @@
 #ifndef _FMT_HPP_INCLUDED_LASDKADSLKJALKJDSALKJALKJSKLJDSLKJSLKSJALKJDSDLSKJDSLKDJASLDFKSJSALK
 #define _FMT_HPP_INCLUDED_LASDKADSLKJALKJDSALKJALKJSKLJDSLKJSLKSJALKJDSDLSKJDSLKDJASLDFKSJSALK
 
-#include <string>
-#include <sstream>
+#include <any>
+#include <array>
+#include <bitset>
+#include <chrono>
+#include <concepts>
+#include <deque>
+#include <forward_list>
+#include <map>
+#include <memory>
+#include <list>
+#include <optional>
+#include <queue>
 #include <regex>
+#include <set>
+#include <sstream>
+#include <stack>
+#include <string>
+#include <tuple>
 #include <type_traits>
+#include <unordered_map>
+#include <unordered_set>
 #include <utility>
+#include <variant>
+#include <vector>
 
 namespace fmt
 {
@@ -56,62 +75,62 @@ namespace fmt
             return std::string{""}; // TODO
         }
 
-        template< typename K, typename H, typename T, typename C, typename Alloc >
-        std::string to_string( std::unordered_set<K, H, T, C, Alloc> const& val )
+        template< typename ... K >
+        std::string to_string( std::unordered_set<K...> const& val )
         {
             return std::string{""}; // TODO
         }
 
-        template< typename K, typename H, typename T, typename C, typename Alloc >
-        std::string to_string( std::unordered_multiset<K, H, T, C, Alloc> const& val )
+        template< typename... K >
+        std::string to_string( std::unordered_multiset<K...> const& val )
         {
             return std::string{""}; // TODO
         }
 
-        template< typename K, typename T, typename C, typename Alloc >
-        std::string to_string( std::map<K, T, C, Alloc> const& val )
+        template< typename... K >
+        std::string to_string( std::map<K...> const& val )
         {
             return std::string{""}; // TODO
         }
 
-        template< typename K, typename T, typename C, typename Alloc >
-        std::string to_string( std::multimap<K, T, C, Alloc> const& val )
+        template< typename... K >
+        std::string to_string( std::multimap<K...> const& val )
         {
             return std::string{""}; // TODO
         }
 
-        template< typename K, typename T, typename H, typename C, typename Alloc >
-        std::string to_string( std::unordered_map<K, T, H, C, Alloc> const& val )
+        template< typename... K >
+        std::string to_string( std::unordered_map<K...> const& val )
         {
             return std::string{""}; // TODO
         }
 
-        template< typename K, typename T, typename H, typename C, typename Alloc >
-        std::string to_string( std::unordered_multimap<K, T, H, C, Alloc> const& val )
+        template< typename... K >
+        std::string to_string( std::unordered_multimap<K...> const& val )
         {
             return std::string{""}; // TODO
         }
 
-        template< typename K, typename C >
-        std::string to_string( std::stack<T, C> const& val )
+        template< typename ... K >
+        std::string to_string( std::stack<K...> const& val )
         {
             return std::string{""}; // TODO
         }
 
-        template< typename K, typename C >
-        std::string to_string( std::queue<T, C> const& val )
+        template< typename... K >
+        std::string to_string( std::queue<K...> const& val )
         {
             return std::string{""}; // TODO
         }
 
-        template< typename K, typename C, typename M >
-        std::string to_string( std::priority_queue<T, C, M> const& val )
+        template< typename... K >
+        std::string to_string( std::priority_queue<K...> const& val )
         {
             return std::string{""}; // TODO
         }
 
-        template< typename A, typename B >
-        std::string to_string( std::pair<A, B> const& val )
+        template< typename ... K >
+        std::string to_string( std::pair<K...> const& val )
         {
             return std::string{""}; // TODO
         }
@@ -139,8 +158,8 @@ namespace fmt
             return std::string{""}; // TODO
         }
 
-        template< typename T, typename U >
-        std::string to_string( std::shared_ptr<T, U> const& val )
+        template< typename... T >
+        std::string to_string( std::shared_ptr<T...> const& val )
         {
             return std::string{""}; // TODO
         }
@@ -157,6 +176,7 @@ namespace fmt
             return std::string{""}; // TODO
         }
 
+        /*
         template< typename T, typename U >
         std::string to_string( std::time_point<T, U> const& val )
         {
@@ -168,6 +188,7 @@ namespace fmt
         {
             return std::string{""}; // TODO
         }
+        */
 
         // other cases
 
@@ -200,10 +221,19 @@ namespace fmt
         template< class T >
         inline constexpr bool has_ostream_v = has_ostream<T>::value;
 
+        template<typename T>
+        struct is_pointer : std::false_type {};
+
+        template<typename T>
+        struct is_pointer<T*> : std::true_type {};
+
+        template< typename T >
+        inline constexpr bool is_pointer_v = is_pointer<T>::value;
+
 
         // other types
         template< typename T >
-        std::string to_string( T const& val )
+        std::string to_string( T val )
         {
             if constexpr( has_to_string_v<T> )
             {
@@ -213,8 +243,14 @@ namespace fmt
             {
                 return cast_to_string( val );
             }
+            else if constexpr( is_pointer_v<T> )
+            {
+                if ( val == nullptr ) return std::string{ "<Null Pointer>" };
+                return std::string{"Pointer to " } + to_string( *val );
+            }
             else
             {
+                return std::string{ "Should be implemented using relfection." };
                 // reflection, then print, TODO
             }
         }
@@ -238,6 +274,8 @@ namespace fmt
             return ans;
         }
 
+
+        /// handle cases when "{d+}"s exist in the format_string
         inline std::string indexed_format( unsigned long, std::string const& format_string )
         {
             return format_string;
@@ -252,6 +290,7 @@ namespace fmt
             return indexed_format( index+1, updated_format_string, args... );
         }
 
+        /// handle cases when "{}"s exist in the format_string
         inline std::string plain_format( std::string const& format_string )
         {
             return format_string;
@@ -271,7 +310,6 @@ namespace fmt
     template< typename ... Args >
     inline std::string format( std::string const& format_string, Args const& ... args )
     {
-        // TODO: fixed cases such as '{{}}}'
         if ( format_string.find( "{}" ) != std::string::npos )
             return plain_format( format_string, args... );
 
