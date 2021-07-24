@@ -35,7 +35,7 @@ namespace fmt
     namespace
     {
 
-        #ifndef MAXFORMAT // maximum elements to format for a container
+        #ifndef MAXFORMAT // maximum elements to format, in case of a container
         constexpr unsigned long max_element_to_format = 3;
         #else
         constexpr unsigned long max_element_to_format = MAXFORMAT;
@@ -46,7 +46,12 @@ namespace fmt
 
         inline std::string to_string( std::string const& st )
         {
-            return st;
+            return std::string{"\""} + st + std::string{"\""};
+        }
+
+        inline std::string to_string( char ch )
+        {
+            return std::string{"\'"} + std::string{1, ch} + std::string{"\'"};
         }
 
         template< typename ... K >
@@ -72,33 +77,33 @@ namespace fmt
             return to_string( val.begin(), val.end() );
         }
 
-        /*
         template< typename T >
         std::string to_string( std::optional<T> const& val )
         {
-            return to_string( val.begin(), val.end() );
+            if (val) return to_string( val.value() );
+            return std::string{"[EMPTY]"};
         }
 
         inline std::string to_string( std::any const& val )
         {
-            return to_string( val.begin(), val.end() );
+            if ( val.has_value() ) return std::string{ "[ANY]" };
+            return std::string{ "[EMPTY]" };
         }
 
         template< typename... T >
         std::string to_string( std::shared_ptr<T...> const& val )
         {
-            return to_string( val.begin(), val.end() );
+            if (val ) return to_string( *val );
+            return std::string{ "<NULL>" };
         }
 
         template< typename T >
         std::string to_string( std::unique_ptr<T> const& val )
         {
-            return to_string( val.begin(), val.end() );
+            if (val ) return to_string( *val );
+            return std::string{ "<NULL>" };
         }
-        */
 
-        //
-        // converts to string
         template <typename U>
         std::string cast_to_string( U const& val )
         {
@@ -155,11 +160,16 @@ namespace fmt
         std::string iterator_to_string( Iterator first, Iterator last );
 
 
-        // other types
+        // fallback types
         template< typename T >
         std::string to_string( T const& val )
         {
-            if constexpr( has_ostream_v<T> )
+            if constexpr( is_pointer_v<T> )
+            {
+                if ( val == nullptr ) return std::string{ "<Null>" };
+                return std::string{"<" } + to_string( *val ) + std::string{">"};
+            }
+            else if constexpr( has_ostream_v<T> )
             {
                 return cast_to_string( val );
             }
@@ -170,11 +180,6 @@ namespace fmt
             else if constexpr( has_to_string_v<T> )
             {
                 return std::to_string( val );
-            }
-            else if constexpr( is_pointer_v<T> )
-            {
-                if ( val == nullptr ) return std::string{ "<Null Pointer>" };
-                return std::string{"Pointer to " } + to_string( *val );
             }
             else if constexpr( has_begin_end_v<T> )
             {
@@ -190,152 +195,38 @@ namespace fmt
         template< std::forward_iterator Iterator >
         std::string iterator_to_string( Iterator first, Iterator last )
         {
+            Iterator _last = last;
             if ( std::distance( first, last ) > static_cast<long int>(max_element_to_format) )
             {
-                last = first;
-                std::advance( last, max_element_to_format );
+                _last = first;
+                std::advance( _last, max_element_to_format );
             }
-                //last = first + max_element_to_format;
 
-            std::string ans{"("};
-            for ( ; first != last; ++first )
-                ans += to_string( *first ) + std::string{", "};
+            std::stringstream ss;
+            ss << "( ";
+            for ( ; first != _last; ++first )
+                ss << to_string( *first )  << ", ";
 
-            return ans + std::string{")"};
+            if (last == _last)
+                ss.seekp(-2, ss.cur);
+            else
+                ss << " ...";
+
+            ss << " )";
+            return ss.str();
         }
 
-        // stl containers
-
-#if 0
-        template< typename T, std::size_t N >
-        std::string to_string( std::array<T, N> const& val )
+        inline std::string replace_all(std::string const& orig, std::string_view what, std::string_view with)
         {
-            return to_string( val.begin(), val.end() );
-        }
-
-        template< typename T, typename Alloc >
-        std::string to_string( std::vector<T, Alloc> const& val )
-        {
-            return to_string( val.begin(), val.end() );
-        }
-
-        template< typename T, typename Alloc >
-        std::string to_string( std::deque<T, Alloc> const& val )
-        {
-            return to_string( val.begin(), val.end() );
-        }
-
-        template< typename T, typename Alloc >
-        std::string to_string( std::forward_list<T, Alloc> const& val )
-        {
-            return to_string( val.begin(), val.end() );
-        }
-
-        template< typename T, typename Alloc >
-        std::string to_string( std::list<T, Alloc> const& val )
-        {
-            return to_string( val.begin(), val.end() );
-        }
-
-        template< typename T, typename C, typename Alloc >
-        std::string to_string( std::set<T, C, Alloc> const& val )
-        {
-            return to_string( val.begin(), val.end() );
-        }
-
-        template< typename T, typename C, typename Alloc >
-        std::string to_string( std::multiset<T, C, Alloc> const& val )
-        {
-            return to_string( val.begin(), val.end() );
-        }
-
-        template< typename ... K >
-        std::string to_string( std::unordered_set<K...> const& val )
-        {
-            return to_string( val.begin(), val.end() );
-        }
-
-        template< typename... K >
-        std::string to_string( std::unordered_multiset<K...> const& val )
-        {
-            return to_string( val.begin(), val.end() );
-        }
-
-        template< typename... K >
-        std::string to_string( std::map<K...> const& val )
-        {
-            return to_string( val.begin(), val.end() );
-        }
-
-        template< typename... K >
-        std::string to_string( std::multimap<K...> const& val )
-        {
-            return to_string( val.begin(), val.end() );
-        }
-
-        template< typename... K >
-        std::string to_string( std::unordered_map<K...> const& val )
-        {
-            return to_string( val.begin(), val.end() );
-        }
-
-        template< typename... K >
-        std::string to_string( std::unordered_multimap<K...> const& val )
-        {
-            return to_string( val.begin(), val.end() );
-        }
-
-        template< typename ... K >
-        std::string to_string( std::stack<K...> const& val )
-        {
-            return to_string( val.begin(), val.end() );
-        }
-
-        template< typename... K >
-        std::string to_string( std::queue<K...> const& val )
-        {
-            return to_string( val.begin(), val.end() );
-        }
-
-        template< typename... K >
-        std::string to_string( std::priority_queue<K...> const& val )
-        {
-            return to_string( val.begin(), val.end() );
-        }
-
-        template< std::size_t N >
-        std::string to_string( std::bitset<N> const& val )
-        {
-            return to_string( val.begin(), val.end() );
-        }
-#endif
-        /*
-        template< typename T, typename U >
-        std::string to_string( std::time_point<T, U> const& val )
-        {
-            return to_string( val.begin(), val.end() );
-        }
-
-        template< typename T, typename U >
-        std::string to_string( std::duration<T, U> const& val )
-        {
-            return to_string( val.begin(), val.end() );
-        }
-        */
-
-        // other cases
-
-        inline std::string replace_all(std::string const& input, std::string_view what, std::string_view with)
-        {
-            std::string ans = input;
+            std::string ans = orig;
             for (std::string::size_type pos{}; ans.npos != (pos = ans.find(what.data(), pos, what.length())); pos += with.length())
                 ans.replace(pos, what.length(), with.data(), with.length());
             return ans;
         }
 
-        inline std::string replace_once(std::string const& input, std::string_view what, std::string_view with)
+        inline std::string replace_once(std::string const& orig, std::string_view what, std::string_view with)
         {
-            std::string ans = input;
+            std::string ans = orig;
             for (std::string::size_type pos{}; ans.npos != (pos = ans.find(what.data(), pos, what.length())); pos += with.length())
             {
                 ans.replace(pos, what.length(), with.data(), with.length());
@@ -344,8 +235,7 @@ namespace fmt
             return ans;
         }
 
-
-        /// handle cases when "{d+}"s exist in the format_string
+        /// handle cases with "{d+}"s
         inline std::string indexed_format( unsigned long, std::string const& format_string )
         {
             return format_string;
@@ -360,7 +250,7 @@ namespace fmt
             return indexed_format( index+1, updated_format_string, args... );
         }
 
-        /// handle cases when "{}"s exist in the format_string
+        /// handle cases with "{}"s
         inline std::string plain_format( std::string const& format_string )
         {
             return format_string;
@@ -377,6 +267,17 @@ namespace fmt
 
     }// anonymous namespace
 
+    ///
+    /// @brief Format args according to the format string fmt, and return the result as a string.
+    /// @param format_string May consist of '{}' or '{d+}' that will be replaced by the formatted arguments.
+    /// @param args Argumentes to be formatted. Supports containers that has 'begin'/'end' methods, aggragrate initialized structures, types/classes that has "<<" operator or can be passed to a string ctor or  has std::to_string() enabled.
+    /// @return A string object holding the formatted result.
+    ///
+    /// \code{.cpp}
+    /// std::cout << fmt::format( "The answer is {}.", 42 ) << std::endl;
+    /// std::cout << fmt::format( "{1}, {0}.", "world", "Hello" ) << std::endl;
+    /// \endcode
+    ///
     template< typename ... Args >
     inline std::string format( std::string const& format_string, Args const& ... args )
     {
