@@ -2,6 +2,7 @@
 #include <iostream>
 #include <vector>
 #include <map>
+#include <complex>
 
 struct s
 {
@@ -51,7 +52,7 @@ int main()
     }
 
     {
-        auto tp = std::make_tuple( 1, 1.01f, '1', 18446744073709551615ULL, s{ 0, 'a', &global_int }, s{1, 'A', nullptr} );
+        auto tp = std::make_tuple( 1, 1.01f, '1', 18446744073709551615ULL, s{ 0, 'a', &global_int }, s{1, 'A', nullptr}, std::make_tuple(1, '1', "123", s{1, '1', nullptr}) );
         std::cout << fmt::format( "tuple: {}", tp ) << std::endl;
     }
 
@@ -81,6 +82,12 @@ int main()
     {
         std::vector<std::string> arr{ "0", "11", "222", "3333", "44444" };
         std::cout << fmt::format( "vector of strings: {}", arr ) << std::endl;
+    }
+
+    {
+        std::complex<int> c1{ 0, 1 };
+        std::complex<double> c2{ 0.01, 0.0011 };
+        std::cout << fmt::format( "complex: {}", std::make_pair(c1, c2) ) << std::endl;
     }
 
     return 0;
