@@ -3,6 +3,7 @@
 
 #### interface
 
+
 ```cpp
 template< typename ... Args >
 inline std::string format( std::string const& format_string, Args const& ... args );
@@ -17,10 +18,10 @@ auto s = fmt::format( "The answer is {}", 42 );
 auto s = fmt::format( "{}, {}!", "Hello", "world" );
 ```
 
-+ enables '{d+}'
++ enables `{d+}`
 
 ```cpp
-auto s = fmt::format( "{1}, {2}!", "world", "Hello" );
+auto s = fmt::format( "{1}, {0}!", "world", "Hello" );
 ```
 
 + ommits additional format indicator
@@ -42,7 +43,6 @@ auto s = fmt::format( "{}", v );
 std::map<int, std::string> m{ {0, "00"}, {1, "11"}, {2, "22"} };
 auto s = fmt::format( "{}", std::make_pair( v, m ) );
 ```
-
 
 + enables type/class that supports `std::to_string( type )` interface
 
