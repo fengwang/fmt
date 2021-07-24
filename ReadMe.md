@@ -23,6 +23,14 @@ auto s = fmt::format( "{}, {}!", "Hello", "world" );
 auto s = fmt::format( "{1}, {2}!", "world", "Hello" );
 ```
 
++ ommits additional format indicator
+
+```cpp
+auto s= fmt::format( "{1}, {0} --> {3}, {4}, {5}.", "world", "Hello" );
+```
+
+This produces `Hello, world --> {3}, {4}, {5}.`
+
 As is to the `args`, this library
 
 + enables custom class that has `begin` and `end` methods defined:
@@ -79,4 +87,10 @@ auto o1 = std::make_shared<int>( 1 );
 std::cout << fmt::format( "std::shared_ptr -- o0: {}, o1: {}", o0, o1) << std::endl;
 ```
 
++ ommits additional arguments
+
+```cpp
+auto s = fmt::format( "The answer is {}.", 42, "reductant argument" );
+auto s = fmt::format( "{1}, {0}.", "world", "Hello", "reductant argument" );
+```
 
