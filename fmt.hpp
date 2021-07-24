@@ -8,9 +8,9 @@
 #include <concepts>
 #include <deque>
 #include <forward_list>
+#include <list>
 #include <map>
 #include <memory>
-#include <list>
 #include <optional>
 #include <queue>
 #include <regex>
@@ -25,18 +25,104 @@
 #include <utility>
 #include <variant>
 #include <vector>
+#include <iterator>
+
+#include "./tuple_binding.hpp"
 
 namespace fmt
 {
 
     namespace
     {
+
+        #ifndef MAXFORMAT // maximum elements to format for a container
+        constexpr unsigned long max_element_to_format = 3;
+        #else
+        constexpr unsigned long max_element_to_format = MAXFORMAT;
+        #endif
+        //
+        // converts to string
+        template <typename U>
+        std::string cast_to_string( U const& val )
+        {
+            std::stringstream ss;
+            ss << val;
+            return ss.str();
+        }
+
+        // detects 'std::to_string( val )'
+        template< typename T, typename=void >
+        struct has_to_string : std::false_type {};
+
+        template< typename T >
+        struct has_to_string<T, std::void_t<decltype(std::to_string(std::declval<T>()))>> : std::true_type {};
+
+        template< typename T >
+        constexpr inline bool has_to_string_v = has_to_string<T>::value;
+
+        // detects 'operator <<'
+        template< typename, typename = void >
+        struct has_ostream : std::false_type {};
+
+        template< typename T >
+        struct has_ostream < T, std::void_t < decltype(  std::declval<std::ostream&>()  << std::declval<T const&>() ) > > : std::true_type {};
+
+        template< class T >
+        inline constexpr bool has_ostream_v = has_ostream<T>::value;
+
+        template<typename T>
+        struct is_pointer : std::false_type {};
+
+        template<typename T>
+        struct is_pointer<T*> : std::true_type {};
+
+        template< typename T >
+        inline constexpr bool is_pointer_v = is_pointer<T>::value;
+
+
+        // other types
+        template< typename T >
+        std::string to_string( T const& val )
+        {
+            if constexpr( has_to_string_v<T> )
+            {
+                return std::to_string( val );
+            }
+            else if constexpr( has_ostream_v<T> )
+            {
+                return cast_to_string( val );
+            }
+            else if constexpr( is_pointer_v<T> )
+            {
+                if ( val == nullptr ) return std::string{ "<Null Pointer>" };
+                return std::string{"Pointer to " } + to_string( *val );
+            }
+            else
+            {
+                return std::string{ "Should be implemented using relfection." };
+                // reflection, then print, TODO
+            }
+        }
+
         // stl containers
+
+        template< std::forward_iterator Iterator >
+        std::string to_string( Iterator first, Iterator last )
+        {
+            if ( std::distance( first, last ) > max_element_to_format )
+                last = first + max_element_to_format;
+
+            std::string ans{"("};
+            for ( ; first != last; ++first )
+                ans += to_string( *first ) + std::string{", "};
+
+            return ans + std::string{")"};
+        }
 
         template< typename T, std::size_t N >
         std::string to_string( std::array<T, N> const& val )
         {
-            return std::string{""}; // TODO
+            return to_string( val.begin(), val.end() );
         }
 
         template< typename T, typename Alloc >
@@ -191,69 +277,6 @@ namespace fmt
         */
 
         // other cases
-
-        // converts to string
-        template <typename U>
-        std::string cast_to_string( U const& val )
-        {
-            std::stringstream ss;
-            ss << val;
-            return ss.str();
-        }
-
-        // detects 'std::to_string( val )'
-        template< typename T, typename=void >
-        struct has_to_string : std::false_type {};
-
-        template< typename T >
-        struct has_to_string<T, std::void_t<decltype(std::to_string(std::declval<T>()))>> : std::true_type {};
-
-        template< typename T >
-        constexpr inline bool has_to_string_v = has_to_string<T>::value;
-
-        // detects 'operator <<'
-        template< typename, typename = void >
-        struct has_ostream : std::false_type {};
-
-        template< typename T >
-        struct has_ostream < T, std::void_t < decltype(  std::declval<std::ostream&>()  << std::declval<T const&>() ) > > : std::true_type {};
-
-        template< class T >
-        inline constexpr bool has_ostream_v = has_ostream<T>::value;
-
-        template<typename T>
-        struct is_pointer : std::false_type {};
-
-        template<typename T>
-        struct is_pointer<T*> : std::true_type {};
-
-        template< typename T >
-        inline constexpr bool is_pointer_v = is_pointer<T>::value;
-
-
-        // other types
-        template< typename T >
-        std::string to_string( T val )
-        {
-            if constexpr( has_to_string_v<T> )
-            {
-                return std::to_string( val );
-            }
-            else if constexpr( has_ostream_v<T> )
-            {
-                return cast_to_string( val );
-            }
-            else if constexpr( is_pointer_v<T> )
-            {
-                if ( val == nullptr ) return std::string{ "<Null Pointer>" };
-                return std::string{"Pointer to " } + to_string( *val );
-            }
-            else
-            {
-                return std::string{ "Should be implemented using relfection." };
-                // reflection, then print, TODO
-            }
-        }
 
         inline std::string replace_all(std::string const& input, std::string_view what, std::string_view with)
         {
